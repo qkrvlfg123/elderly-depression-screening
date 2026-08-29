@@ -1,0 +1,16 @@
+# 모델링 / 학습
+torch>=2.0
+transformers>=4.40
+scikit-learn
+pandas
+numpy
+
+# API 서버
+fastapi
+uvicorn
+pydantic
+
+# 전처리(문장 분리)는 버전 충돌이 있어 별도 환경 권장:
+#   conda create -n kssds_env python=3.12 -y
+#   conda activate kssds_env
+#   pip install transformers==4.42.4 KSSDS pandas

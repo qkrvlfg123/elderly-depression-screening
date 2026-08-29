@@ -1,0 +1,25 @@
+# 학습된 모델 가중치 (용량 큼 · 재배포 X)
+saved_models/
+model_저장/
+*.pt
+*.bin
+*.safetensors
+
+# 원본/전처리 데이터 (AI-Hub 라이선스 · 재배포 금지)
+*.csv
+!results/pred_FINAL_*.csv   # 예측 결과 샘플만 예외적으로 포함
+speakers*.csv
+
+# 파이썬
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+.venv/
+venv/
+env/
+
+# OS / 에디터
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
