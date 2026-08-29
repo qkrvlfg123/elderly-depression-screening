@@ -1,4 +1,4 @@
-# 사랑방 자서전 — 우울 위험 선별 AI (DA 파트)
+# 사랑방 자서전 — 우울 위험 선별 AI
 
 > 매일 질문 하나에 말로 답하는 녹화 한 번으로 — 자서전이 쌓이고 · 건강 신호가 감지되고 · 또래와 연결됩니다.
 
@@ -26,14 +26,20 @@
 | **평가** | 불균형(위험군 23%) 대응 지표: **F2 0.59 · Balanced Acc 0.61 · Recall 0.82** (임계값 0.5, 위험군 258명 중 211명 포착) |
 | **서비스화** | 최종 4모델 앙상블 추론 서버(FastAPI) 구현 — 위험도(0~1) → **행복지수(0~100)** 변환, 3단계 상태(안정/관찰/상담) 분류, **점수 보정(calibration)** 로직 설계 |
 
-**핵심 성과** — 텍스트 단독 **AUROC 0.674**로, 서울대 보라매병원 연구의 텍스트 단독 우울·자살위험 평가(0.632)를 상회. 5-fold(0.666)·10-fold(0.664) 교차검증으로 일반화 성능 확인.
+**핵심 성과** — 텍스트 단독 **AUROC 0.674**로, 서울대 보라매병원 연구의 텍스트 단독 우울·자살위험 평가(0.632)를 상회. 5-fold(0.675)·10-fold(0.672) 교차검증으로 일반화 성능 확인.
+
+> **검증 결과 요약** (화자 1,164명 · 위험군 258 / 정상 906)
+> AUROC 0.6741 · 5-fold 0.6753 · 10-fold 0.6722 · recall 0.818 · precision 0.280 · F2 0.591 · Balanced Acc 0.609 · Youden's J 최적 0.546 (놓치지 않기 우선으로 0.5 채택)
 
 <br>
 
 ## 🧩 파이프라인
 
 ```
-speakers.csv  (화자 단위 통합 텍스트 + PHQ-2 라벨)
+JSON 원본 (AI-Hub 71703)
+      │
+      ▼  00_make_speakers_csv.py     화자별 통합 + PHQ-2/GAD-2·인구통계 정리
+speakers.csv
       │
       ▼  01_preprocess_kssds.py      KSSDS 문장 분리 (문장 경계 보존)
 speakers_kssds.csv
@@ -45,6 +51,9 @@ saved_models/  (KoBigBird_1234_f · KoBigBird_2222_f · KLUE-RoBERTa_888 · KLUE
       │
       ▼  04_serve_api.py             FastAPI 4모델 앙상블 서버 (위험도 → 보정 → 행복지수 → 3단계)
 POST /predict → {"risk_score": 0.32, "happiness_index": 68, "grade": "안정", ...}
+
+  └─ 검증 ─┬─ 05_cross_validation.py   5-fold / 10-fold + 과적합 방어 비교
+           └─ 06_evaluation.py         F2 · Balanced Acc · recall · Youden's J · 임계값 분석
 ```
 
 <br>
@@ -54,10 +63,13 @@ POST /predict → {"risk_score": 0.32, "happiness_index": 68, "grade": "안정",
 ```
 .
 ├── src/
+│   ├── 00_make_speakers_csv.py    # JSON 원본 → 화자별 통합 CSV
 │   ├── 01_preprocess_kssds.py     # KSSDS 문장 분리 전처리
 │   ├── 02_train_ensemble.py       # 멀티모델 앙상블 학습·평가
 │   ├── 03_save_final_models.py    # 최종 모델 학습·저장 (--demo 옵션)
-│   └── 04_serve_api.py            # 4모델 앙상블 추론 API (FastAPI + 점수 보정)
+│   ├── 04_serve_api.py            # 4모델 앙상블 추론 API (FastAPI + 점수 보정)
+│   ├── 05_cross_validation.py     # 5-fold / 10-fold 교차검증
+│   └── 06_evaluation.py           # F2·Balanced Acc·recall·Youden's J 평가
 ├── results/
 │   ├── pred_FINAL_KLUE-BERT_42.csv      # 화자별 예측 확률 (샘플)
 │   └── pred_FINAL_KoBigBird_1234_f.csv
@@ -85,6 +97,9 @@ POST /predict → {"risk_score": 0.32, "happiness_index": 68, "grade": "안정",
 ```bash
 pip install -r requirements.txt
 
+# 0) JSON 원본 → 화자별 통합 CSV (AI-Hub 71703 데이터 필요)
+python src/00_make_speakers_csv.py --json-dir ./json --out speakers.csv
+
 # 1) 전처리 (KSSDS는 버전 충돌 방지를 위해 별도 conda 환경 권장 — 파일 상단 주석 참고)
 python src/01_preprocess_kssds.py --in speakers.csv --out speakers_kssds.csv
 
@@ -97,6 +112,10 @@ python src/03_save_final_models.py --csv speakers_kssds.csv --out ./saved_models
 # 4) API 서버 실행 (saved_models/ 안의 모델을 자동 스캔·앙상블)
 python src/04_serve_api.py --models ./saved_models
 # → POST http://localhost:8000/predict  {"text": "..."}
+
+# 5~6) 검증·평가 (예측 결과 pred_*.csv 필요)
+python src/05_cross_validation.py --truth speakers_clean.csv --pred-dir ./results
+python src/06_evaluation.py --truth speakers_clean.csv --pred-dir ./results
 ```
 
 추론 API 입출력 형식은 [`docs/API명세.md`](./docs/API명세.md) 참고.
