@@ -1,0 +1,87 @@
+{
+  "n_speakers": 5823,
+  "positive_rate": 0.2327,
+  "cutoff": 2,
+  "max_chars": 20000,
+  "seed": 42,
+  "same_test_speakers": {
+    "n_train": 4659,
+    "n_test": 1164,
+    "n_test_positive": 258,
+    "pred_FINAL_KLUE-BERT_42.csv": {
+      "auroc": 0.6249,
+      "ci95": [
+        0.5885,
+        0.6605
+      ]
+    },
+    "pred_FINAL_KoBigBird_1234_f.csv": {
+      "auroc": 0.6471,
+      "ci95": [
+        0.6095,
+        0.6837
+      ]
+    },
+    "transformer_mean_of_committed": {
+      "auroc": 0.652,
+      "ci95": [
+        0.6149,
+        0.6883
+      ],
+      "n_models": 2
+    },
+    "baseline_demographics": {
+      "auroc": 0.5639,
+      "ci95": [
+        0.5217,
+        0.6045
+      ]
+    },
+    "baseline_tfidf": {
+      "auroc": 0.6453,
+      "ci95": [
+        0.6079,
+        0.6821
+      ]
+    },
+    "transformer_plus_tfidf": {
+      "auroc": 0.6586,
+      "ci95": [
+        0.6218,
+        0.6953
+      ],
+      "note": "사후 결합이므로 참고용"
+    }
+  },
+  "cross_validation": {
+    "folds": 5,
+    "demographics": {
+      "mean": 0.5422,
+      "std": 0.0141,
+      "per_fold": [
+        0.5494,
+        0.5297,
+        0.5268,
+        0.5397,
+        0.5654
+      ]
+    },
+    "tfidf": {
+      "mean": 0.6342,
+      "std": 0.0107,
+      "per_fold": [
+        0.6316,
+        0.6307,
+        0.6176,
+        0.6426,
+        0.6484
+      ],
+      "out_of_fold_auroc": 0.6341,
+      "ci95": [
+        0.6176,
+        0.6508
+      ]
+    }
+  },
+  "seconds": 1186
+}
