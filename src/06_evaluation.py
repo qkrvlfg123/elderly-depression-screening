@@ -1,110 +1,141 @@
 # -*- coding: utf-8 -*-
 """
-06. 평가 — 최종 앙상블의 성능 지표 및 임계값 분석
+06. 앙상블 구성·임계값 선택(val) → test 평가
 
-불균형 데이터(정상 78%)에서 정확도(Accuracy)는 함정이므로 F2·Balanced Accuracy·recall
-중심으로 평가한다. 임계값(절단점)별 recall/precision을 분석해 0.4/0.5 등급 경계의 근거를
-확인하고, Youden's J 최적 임계값과 우리가 채택한 값(0.5)을 비교한다.
+  1) 구성별 val AUROC로 순위 → 상위 k개 평균 앙상블, k는 val AUROC가 가장 높은 값으로 선택
+  2) 임계값 (val에서 결정, PHQ2>=2 / >=3 각각)
+     - watch  (🟡 관찰 이상)  : val 재현율 >= 0.80 을 만족하는 가장 높은 값 — 위험군을 놓치지 않기
+     - refer  (🔴 상담 권유)  : val 특이도 >= 0.80 을 만족하는 가장 낮은 값 — 가족 알림이 가는 등급이라
+                                 비위험군 오경보를 20% 이내로 제한 (기획서: 임계치 초과 시에만 알림, 알림 피로 방지)
+     - fixed0.5               : 참고용
+  3) 위에서 정한 앙상블·임계값으로 test 평가
+     AUROC(부트스트랩 95% CI) · 재현율 · 정밀도 · 특이도 · 위험군 표시 비율
+  출력: results/experiments.csv(앙상블·구성별 test 점수), results/test_pred_ensemble.csv,
+        results/evaluation.json, saved_models/ensemble.json (서빙용 구성·임계값)
 
-[입력] pred_*.csv (최종 4개 모델), speakers_clean.csv (정답)
-[출력] AUROC / AUPRC / F2 / Balanced Accuracy / 임계값별 recall·precision / Youden's J
-
-[실행] python 06_evaluation.py --truth speakers_clean.csv --pred-dir ./results
+[실행] python src/06_evaluation.py --csv speakers.csv
 """
 import os
+import json
 import argparse
-import numpy as np
+
 import pandas as pd
-from sklearn.metrics import (roc_auc_score, confusion_matrix, fbeta_score,
-                             balanced_accuracy_score, matthews_corrcoef,
-                             average_precision_score, roc_curve)
+from sklearn.metrics import roc_auc_score
 
-CUT = 2
-FINAL_MODELS = [
-    "pred_T_KoBigBird_1234_f.csv",
-    "pred_U2_KLUE-RoBERTa_888.csv",
-    "pred_U2_KoBigBird_2222_f.csv",
-    "pred_T_KLUE-BERT_42.csv",
-]
+import common as C
+
+WATCH_RECALL = 0.80
+REFER_SPECIFICITY = 0.80
 
 
-def load_pred(path):
-    df = pd.read_csv(path)
-    sid_col = "sid" if "sid" in df.columns else "speaker_id"
-    prob_col = "prob" if "prob" in df.columns else df.columns[-1]
-    return dict(zip(df[sid_col].astype(str), df[prob_col]))
+def load_preds(split):
+    out = {}
+    for name in C.MODEL_CONFIGS:
+        path = os.path.join(C.PRED_DIR, f"{name}_{split}.csv")
+        if os.path.exists(path):
+            d = pd.read_csv(path, dtype={"sid": str})
+            out[name] = d.set_index("sid")["prob"]
+    return pd.DataFrame(out)
+
+
+def fmt_ci(ci):
+    return f"[{ci[0]:.3f}, {ci[1]:.3f}]"
 
 
 def main():
-    ap = argparse.ArgumentParser(description="최종 앙상블 성능 평가")
-    ap.add_argument("--truth", default="speakers_clean.csv", help="정답 라벨 CSV")
-    ap.add_argument("--pred-dir", default=".", help="pred_*.csv 폴더")
+    ap = argparse.ArgumentParser(description="val 기반 앙상블·임계값 선택 → test 평가")
+    ap.add_argument("--csv", default=os.path.join(C.ROOT, "speakers.csv"))
+    ap.add_argument("--models-dir", default=os.path.join(C.ROOT, "saved_models"))
     args = ap.parse_args()
 
-    truth = pd.read_csv(args.truth)
-    truth["label"] = (truth["PHQ2"] >= CUT).astype(int)
-    label_map = dict(zip(truth["speaker_id"].astype(str), truth["label"]))
+    df = C.load_speakers(args.csv).set_index("speaker_id")
+    pv, pt = load_preds("val"), load_preds("test")
+    names = [n for n in pv.columns if n in pt.columns]
+    yv2 = (df.loc[pv.index, "score"] >= 2).astype(int).values
 
-    preds = [load_pred(os.path.join(args.pred_dir, m)) for m in FINAL_MODELS]
-    common = set(preds[0].keys())
-    for p in preds[1:]:
-        common &= set(p.keys())
-    common &= set(label_map.keys())
-    common = sorted(common)
+    # ── 1) val로만 앙상블 구성 결정 ──
+    val_auc = {n: roc_auc_score(yv2, pv[n].values) for n in names}
+    order = sorted(names, key=lambda n: -val_auc[n])
+    k_auc = {k: roc_auc_score(yv2, pv[order[:k]].mean(axis=1).values) for k in range(1, len(order) + 1)}
+    best_k = max(k_auc, key=k_auc.get)
+    members = order[:best_k]
+    print("val AUROC (구성):", {n: round(val_auc[n], 4) for n in order})
+    print("val AUROC (상위 k 평균):", {k: round(v, 4) for k, v in k_auc.items()})
+    print(f"→ 선택: 상위 {best_k}개 {members}")
 
-    y = np.array([label_map[s] for s in common])
-    avg = np.column_stack([[p[s] for s in common] for p in preds]).mean(axis=1)
+    ens_v = pv[members].mean(axis=1)
+    ens_t = pt[members].mean(axis=1)
 
-    n_pos, n_neg = int(y.sum()), int((1 - y).sum())
-    print("=" * 50)
-    print("최종 앙상블 성능 평가")
-    print(f"전체 {len(y):,}명 (위험군 {n_pos} / 정상 {n_neg}, 정상 쏠림 {n_neg / len(y) * 100:.0f}%)")
-    print("=" * 50)
+    # ── 2) val로 임계값 결정 ──
+    thr = {}
+    for cut in C.REPORT_CUTS:
+        yv = (df.loc[ens_v.index, "score"] >= cut).astype(int).values
+        thr[cut] = {"watch": C.threshold_for_recall(yv, ens_v.values, WATCH_RECALL),
+                    "refer": C.threshold_for_specificity(yv, ens_v.values, REFER_SPECIFICITY),
+                    "fixed0.5": 0.5}
 
-    # 임계값 무관 지표
-    print("\n[임계값 무관]")
-    print(f"  AUROC : {roc_auc_score(y, avg):.4f}")
-    print(f"  AUPRC : {average_precision_score(y, avg):.4f}")
+    # ── 3) test 평가 ──
+    report = {"members": members, "k": best_k, "val_auroc_members": val_auc,
+              "val_auroc_topk": k_auc, "rules": {"watch": f"val recall >= {WATCH_RECALL}",
+                                                 "refer": f"val specificity >= {REFER_SPECIFICITY}"},
+              "test": {}}
+    exp = pd.read_csv(C.EXPERIMENTS_CSV)
+    exp = exp[~exp["run_id"].str.startswith("holdout/ensemble")]
+    exp.to_csv(C.EXPERIMENTS_CSV, index=False, encoding="utf-8-sig")
+    print(f"\n===== test ({len(ens_t)}명) =====")
+    for cut in C.REPORT_CUTS:
+        yv = (df.loc[ens_v.index, "score"] >= cut).astype(int).values
+        yt = (df.loc[ens_t.index, "score"] >= cut).astype(int).values
+        auc = roc_auc_score(yt, ens_t.values)
+        auc_ci = C.bootstrap_ci(yt, ens_t.values)["auroc"]
+        res = {"n": int(len(yt)), "n_pos": int(yt.sum()), "auroc": auc, "auroc_ci": auc_ci,
+               "thresholds": {}}
+        print(f"\n[PHQ2 >= {cut}] 위험군 {yt.sum()}명 / {len(yt)}명 · AUROC {auc:.4f} 95% CI {fmt_ci(auc_ci)}")
+        for tname, t in thr[cut].items():
+            m = C.screening_metrics(yt, ens_t.values, t)
+            ci = C.bootstrap_ci(yt, ens_t.values, t)
+            res["thresholds"][tname] = {"threshold": t, **m,
+                                        **{f"{k}_ci": v for k, v in ci.items() if k != "auroc"}}
+            print(f"  {tname:8s} 임계값 {t:.3f}: 재현율 {m['recall']:.3f} {fmt_ci(ci['recall'])} · "
+                  f"정밀도 {m['precision']:.3f} {fmt_ci(ci['precision'])} · "
+                  f"특이도 {m['specificity']:.3f} {fmt_ci(ci['specificity'])} · "
+                  f"위험군 표시 {m['flagged_rate']:.1%} {fmt_ci(ci['flagged_rate'])}")
+            C.log_experiment({
+                "run_id": f"holdout/ensemble/PHQ2>={cut}/{tname}", "kind": "ensemble",
+                "config": "+".join(members), "label": f"PHQ2>={cut}",
+                "val_auroc": roc_auc_score(yv, ens_v.values),
+                "test_auroc": auc, "test_auroc_ci_low": auc_ci[0], "test_auroc_ci_high": auc_ci[1],
+                "threshold_rule": tname, "threshold": t,
+                **{f"test_{k}": m[k] for k in ("recall", "precision", "specificity", "flagged_rate")},
+                "n_val": len(ens_v), "n_test": len(ens_t),
+            })
+        report["test"][f"PHQ2>={cut}"] = res
 
-    # 임계값 0.5 기준 상세
-    print("\n[임계값 0.5 기준]")
-    pred = (avg >= 0.5).astype(int)
-    tn, fp, fn, tp = confusion_matrix(y, pred).ravel()
-    recall, precision, spec = tp / (tp + fn), tp / (tp + fp), tn / (tn + fp)
-    print(f"  recall (재현율)    : {recall:.3f}  (위험군 {n_pos}명 중 {tp}명 포착)")
-    print(f"  precision (정밀도) : {precision:.3f}  (위험판정 {tp + fp}명 중 {tp}명 실제)")
-    print(f"  특이도             : {spec:.3f}")
-    print(f"  F1 점수            : {fbeta_score(y, pred, beta=1):.3f}")
-    print(f"  F2 점수            : {fbeta_score(y, pred, beta=2):.3f}  (recall 2배 중시)")
-    print(f"  Balanced Accuracy  : {balanced_accuracy_score(y, pred):.3f}")
-    print(f"  MCC                : {matthews_corrcoef(y, pred):.3f}")
-    print(f"  혼동행렬: TP={tp} FP={fp} FN={fn} TN={tn}")
+    # 구성별 test 점수 (선택에는 쓰지 않음, 기록용)
+    yt2 = (df.loc[pt.index, "score"] >= 2).astype(int).values
+    yt3 = (df.loc[pt.index, "score"] >= 3).astype(int).values
+    exp = pd.read_csv(C.EXPERIMENTS_CSV)
+    for n in names:
+        ci = C.bootstrap_ci(yt2, pt[n].values)["auroc"]
+        mask = exp["run_id"] == f"holdout/{n}"
+        exp.loc[mask, "test_auroc"] = roc_auc_score(yt2, pt[n].values)
+        exp.loc[mask, "test_auroc_ci_low"], exp.loc[mask, "test_auroc_ci_high"] = ci
+        exp.loc[mask, "test_auroc_phq2ge3"] = roc_auc_score(yt3, pt[n].values)
+    exp.to_csv(C.EXPERIMENTS_CSV, index=False, encoding="utf-8-sig")
 
-    # 정확도 함정 경고
-    acc = (tp + tn) / len(y)
-    all_neg = (y == 0).mean()
-    print(f"\n  ⚠️ Accuracy {acc:.3f} — 전부 '정상'만 찍어도 {all_neg:.3f} "
-          f"(불균형 함정, 대표지표로 쓰지 않음)")
+    ens_t.rename("prob").rename_axis("sid").reset_index().to_csv(
+        os.path.join(C.RESULTS, "test_pred_ensemble.csv"), index=False)
+    with open(os.path.join(C.RESULTS, "evaluation.json"), "w", encoding="utf-8") as f:
+        json.dump(report, f, ensure_ascii=False, indent=2, default=float)
 
-    # 임계값별 분석
-    print("\n[임계값별 recall / precision]")
-    print(f"  {'임계값':>6} {'recall':>8} {'precision':>10} {'포착':>8}")
-    for th in [0.3, 0.4, 0.5, 0.55, 0.6]:
-        pr = (avg >= th).astype(int)
-        if pr.sum() == 0:
-            continue
-        tn2, fp2, fn2, tp2 = confusion_matrix(y, pr).ravel()
-        rec2 = tp2 / (tp2 + fn2)
-        prec2 = tp2 / (tp2 + fp2) if (tp2 + fp2) > 0 else 0
-        print(f"  {th:>6.2f} {rec2:>8.3f} {prec2:>10.3f} {tp2:>6}명")
-
-    # Youden's J 최적 임계값
-    fpr, tpr, thr = roc_curve(y, avg)
-    J = tpr - fpr
-    best_idx = np.argmax(J)
-    print("\n[Youden's J 최적]")
-    print(f"  최적 임계값 = {thr[best_idx]:.3f} (J={J[best_idx]:.3f})")
-    print("  → 우리는 놓치지 않기 우선으로 이보다 낮은 0.5를 채택")
+    # 서빙용: 앙상블 구성원과 PHQ2>=2 기준 val 임계값
+    os.makedirs(args.models_dir, exist_ok=True)
+    with open(os.path.join(args.models_dir, "ensemble.json"), "w", encoding="utf-8") as f:
+        json.dump({"members": members,
+                   "threshold_refer": thr[2]["refer"],
+                   "threshold_watch": thr[2]["watch"]}, f, indent=2)
+    print(f"\n저장: results/experiments.csv, results/test_pred_ensemble.csv, results/evaluation.json, "
+          f"{os.path.join(args.models_dir, 'ensemble.json')}")
 
 
 if __name__ == "__main__":

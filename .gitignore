@@ -6,9 +6,15 @@ model_저장/
 *.safetensors
 
 # 원본/전처리 데이터 (AI-Hub 라이선스 · 재배포 금지)
+# results/ 의 요약 수치·분할 목록만 예외적으로 포함 — 화자별 예측·라벨·텍스트는 넣지 않는다
 *.csv
-!results/pred_FINAL_*.csv   # 예측 결과 샘플만 예외적으로 포함
+!results/experiments.csv
+!results/input_length.csv
+!results/split.csv
 speakers*.csv
+
+# 학습 로그
+logs/
 
 # 파이썬
 __pycache__/
