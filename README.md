@@ -127,8 +127,7 @@ POST /predict → {"risk_score": 0.32, "happiness_index": 68, "grade": "안정",
 │   └── 04_serve_api.py            # 앙상블 추론 API (FastAPI)
 ├── results/
 │   ├── final_serving.json         # 배포 모델 test 지표 (등급별, 신뢰구간 포함)
-│   ├── repro_final4.json          # 재학습 epoch별 test AUROC
-│   └── experiments.csv            # 학습·평가 기록
+│   └── repro_final4.json          # 재학습 epoch별 test AUROC
 ├── docs/
 │   └── API명세.md                 # 추론 API 입출력 명세
 ├── requirements.txt
