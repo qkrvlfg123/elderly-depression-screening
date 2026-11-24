@@ -98,8 +98,7 @@ def main():
 
     write_configs()
     df = C.load_speakers(args.csv)
-    split = pd.read_csv(C.SPLIT_CSV, dtype={"speaker_id": str})
-    te = df[df["speaker_id"].isin(split.loc[split["split"] == "test", "speaker_id"])].reset_index(drop=True)
+    te = df[df["speaker_id"].isin(C.final_test_ids(args.csv))].reset_index(drop=True)
     print(f"장치 {device} | test {len(te)}명", flush=True)
 
     os.makedirs(C.PRED_DIR, exist_ok=True)

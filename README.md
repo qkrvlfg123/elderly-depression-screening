@@ -26,7 +26,7 @@
 | **데이터** | AI-Hub 고령자 구술 데이터(No. 71703), 화자 단위 통합 5,823명 → 키워드마다 우울점수가 다르게 기록된 4명 제외 → **5,819명** (화자당 평균 약 2.1만 자) |
 | **전처리** | KSSDS 문장 분리 |
 | **라벨** | PHQ-2 유사 우울점수 **2점 이상 = 위험군** (23.3%). 3점 이상(9.9%) 기준 결과도 함께 보고 |
-| **분할** | 화자 단위 8:2 → train 4,655 / test 1,164명 (위험군 258명) |
+| **분할** | 화자 단위 8:2 (`train_test_split`, random_state=42) → train 4,655 / test 1,164명 (위험군 258명) |
 | **모델** | KoBigBird 2 · KLUE-RoBERTa 1 · KLUE-BERT 1 = **4모델 앙상블** (확률 평균) |
 | **결과** | test AUROC **0.661** (95% CI 0.625–0.697), 답변 1개 분량(800자) 입력 시 **0.604** |
 | **서빙** | FastAPI. 모델 평균 → 점수 보정 → 행복지수 · 3단계 등급(🟢 안정 · 🟡 관찰 · 🔴 상담 권유) |
@@ -128,8 +128,7 @@ POST /predict → {"risk_score": 0.32, "happiness_index": 68, "grade": "안정",
 ├── results/
 │   ├── final_serving.json         # 배포 모델 test 지표 (등급별, 신뢰구간 포함)
 │   ├── repro_final4.json          # 재학습 epoch별 test AUROC
-│   ├── experiments.csv            # 학습·평가 기록
-│   └── split.csv                  # 화자별 train/test 배정 (화자 ID와 배정만)
+│   └── experiments.csv            # 학습·평가 기록
 ├── docs/
 │   └── API명세.md                 # 추론 API 입출력 명세
 ├── requirements.txt
@@ -171,7 +170,7 @@ python src/04_serve_api.py
 # → POST http://localhost:8000/predict  {"text": "..."}
 ```
 
-서빙 등급은 모델 평균 점수를 0.50–0.78 구간에서 0–1로 편 위험도에 적용합니다. 위험도 0.5 이상이면 상담 권유, 0.4 이상이면 관찰, 그 아래는 안정입니다. 추론 API 입출력 형식은 [`docs/API명세.md`](./docs/API명세.md) 참고.
+서빙 등급은 모델 평균 점수를 0.50–0.78 구간에서 0–1로 편 위험도에 적용합니다. 위험도 0.5 이상이면 상담 권유, 0.4 이상이면 관찰, 그 아래는 안정입니다. 추론 API 입출력 형식은 [`docs/API명세.md`](./docs/API명세.md)에 있습니다.
 
 <br>
 

@@ -7,7 +7,6 @@
 
   - 데이터: speakers_clean_kssds.csv (KSSDS 문장 분리, 라벨 불일치 4명 제외, 5,819명)
   - 분할  : 화자 8:2 (train_test_split, random_state=42) → train 4,655 / test 1,164
-            (results/split.csv 의 test 화자와 같음을 확인 후 진행)
   - 모델  : KoBigBird_1234_f, KoBigBird_2222_f, KLUE-RoBERTa_888, KLUE-BERT_42
   - 설정  : 5 epoch, KoBigBird 3072토큰·6000자×5청크·배치1×누적16·lr 1e-5,
             KLUE 계열 512토큰·800자×8청크·배치16·lr 2e-5, pos_weight 5, focal γ=2 (_f만)
@@ -22,7 +21,6 @@
 """
 import os
 import re
-import sys
 import json
 import time
 import argparse
@@ -186,12 +184,9 @@ def main():
     df = pd.read_csv(args.csv).dropna(subset=["text", TARGET]).reset_index(drop=True)
     df["score"] = df[TARGET].astype(float); df["speaker_id"] = df["speaker_id"].astype(str)
     tr_df, te_df = train_test_split(df, test_size=0.2, random_state=42)
-    fixed = set(pd.read_csv(C.SPLIT_CSV, dtype=str).query("split=='test'")["speaker_id"])
-    if set(te_df["speaker_id"]) != fixed:
-        sys.exit("[중단] 8:2 분할의 test 화자가 results/split.csv 의 test 와 다릅니다.")
     truth = (te_df.set_index("speaker_id")["score"] >= CUT).astype(int)
     truth_score = te_df.set_index("speaker_id")["score"]
-    print(f"장치 {device} | 화자 {len(df)}명 (train {len(tr_df)} / test {len(te_df)}, 기존 test와 동일)", flush=True)
+    print(f"장치 {device} | 화자 {len(df)}명 (train {len(tr_df)} / test {len(te_df)})", flush=True)
     os.makedirs(REPRO_DIR, exist_ok=True)
 
     for name, cfg, seed, focal in FINAL4:

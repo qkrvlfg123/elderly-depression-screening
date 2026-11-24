@@ -3,7 +3,7 @@
 공통 모듈 — 학습(02)·평가(03)·서빙(04)이 같은 방식을 쓰도록 한 곳에 모은다.
 
   - chunk_text / aggregate : 텍스트 청킹과 화자 단위 집계 (평가·서빙 공통)
-  - load_speakers          : 데이터 로드
+  - load_speakers / final_test_ids : 데이터 로드와 화자 단위 8:2 분할의 test 화자
   - screening_metrics / bootstrap_ci / log_experiment : 평가 지표와 기록
 """
 import os
@@ -17,7 +17,6 @@ import pandas as pd
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RESULTS = os.path.join(ROOT, "results")
 PRED_DIR = os.path.join(RESULTS, "preds")
-SPLIT_CSV = os.path.join(RESULTS, "split.csv")
 EXPERIMENTS_CSV = os.path.join(RESULTS, "experiments.csv")
 
 TARGET = "PHQ2"
@@ -71,6 +70,14 @@ def load_speakers(csv_path):
     df["score"] = df[TARGET].astype(float)
     df["label"] = (df["score"] >= CUT).astype(int)
     return df
+
+
+def final_test_ids(csv_path):
+    """02_train_final.py 와 같은 화자 8:2 분할(random_state=42)의 test 화자 ID."""
+    from sklearn.model_selection import train_test_split
+    df = pd.read_csv(csv_path).dropna(subset=["text", TARGET]).reset_index(drop=True)
+    _, te = train_test_split(df, test_size=0.2, random_state=42)
+    return set(te["speaker_id"].astype(str))
 
 
 # ── 평가 ─────────────────────────────────────────────────────────
