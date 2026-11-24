@@ -96,10 +96,9 @@ def train_epochs(name, cfg, seed, focal, tr_df, te_df, truth, device, save_dir):
     """당시 train_predict와 같은 학습. epoch마다 test 화자별 예측을 저장한다."""
     torch.manual_seed(seed); np.random.seed(seed)
     print(f"\n=== [{name}] 학습 ===", flush=True)
-    tok = AutoTokenizer.from_pretrained(cfg["mn"], trust_remote_code=True)
+    tok = AutoTokenizer.from_pretrained(cfg["mn"])
     tr, te = mkrows(tr_df, cfg["cc"], cfg["mc"]), mkrows(te_df, cfg["cc"], cfg["mc"])
-    model = AutoModelForSequenceClassification.from_pretrained(cfg["mn"], num_labels=1,
-                                                               trust_remote_code=True).to(device)
+    model = AutoModelForSequenceClassification.from_pretrained(cfg["mn"], num_labels=1).to(device)
     lf = (FocalLoss(FOCAL_GAMMA, POS_WEIGHT) if focal
           else nn.BCEWithLogitsLoss(pos_weight=torch.tensor([POS_WEIGHT]).to(device)))
     opt = torch.optim.AdamW(model.parameters(), lr=cfg["lr"], weight_decay=0.01)
