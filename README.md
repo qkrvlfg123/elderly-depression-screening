@@ -71,6 +71,19 @@
 - 800자 입력에서 🔴는 전체의 약 24%를 표시하고, 그중 실제 위험군은 32%입니다(무작위로 고를 때 22%). 위험군의 34%를 잡습니다.
 - 괄호는 test 화자를 2,000회 재표집한 부트스트랩 95% 신뢰구간입니다. 상세 수치는 `results/final_serving.json`에 있습니다.
 
+### 기준 모델 비교
+
+같은 test 화자에서 가벼운 기준 모델과 비교했습니다(`src/05_baseline.py`). 기준 모델은 설정을 하나로 고정했고 test를 보고 고른 값이 없습니다.
+
+| 모델 | test AUROC (95% CI) | 5-fold 교차검증 (fold마다 재학습) |
+|------|:---:|:---:|
+| 인구학 변수만 (나이·성별·교육, 로지스틱 회귀) | 0.564 (0.521–0.604) | 0.542 ± 0.012 |
+| 글자 2~3-gram TF-IDF + 로지스틱 회귀 | 0.645 (0.607–0.682) | 0.630 ± 0.014 |
+| **최종본 4모델 앙상블** | **0.661 (0.625–0.697)** | – |
+
+- 최종본 앙상블과 TF-IDF의 차이는 +0.016이고, 같은 화자를 재표집한 95% 구간은 −0.015 – +0.047로 0을 포함합니다. 이 데이터에서 트랜스포머 앙상블이 단순한 TF-IDF 모델보다 뚜렷하게 낫다고 보기는 어렵습니다.
+- 인구학 변수만으로는 무작위(0.5)에 가까워, 텍스트에 담긴 신호가 성능의 대부분을 차지합니다.
+
 ### 발표 수치(0.674)와의 관계
 
 발표 때는 별도 val 없이 test 점수로 모델마다 epoch을 고르고, 학습한 여러 모델 중 test 점수가 가장 높은 4개 조합을 골랐습니다. 그래서 위 test 결과는 낙관적인 값입니다. 이를 확인하려고 같은 데이터·분할·설정으로 4모델을 다시 학습하고, epoch마다 test 예측을 저장했습니다(`src/02_train_final.py`).
@@ -108,6 +121,7 @@ speakers_clean_kssds.csv
       │
       ▼  02_train_final.py           4모델 학습 (5 epoch, epoch별 test 예측 저장) → results/repro_final4.json
       ▼  03_evaluate_final.py        서빙 구성(ensemble.json) 작성 + test 평가 → results/final_serving.json
+      ├─ 05_baseline.py              기준 모델(인구학·TF-IDF) 비교 + 5-fold 교차검증 → results/baseline_cv.json
       ▼  04_serve_api.py             FastAPI 앙상블 서버 (위험도 → 보정 → 행복지수 → 3단계)
 POST /predict → {"risk_score": 0.32, "happiness_index": 68, "grade": "안정", ...}
 ```
@@ -124,10 +138,12 @@ POST /predict → {"risk_score": 0.32, "happiness_index": 68, "grade": "안정",
 │   ├── 01_preprocess_kssds.py     # KSSDS 문장 분리
 │   ├── 02_train_final.py          # 4모델 학습
 │   ├── 03_evaluate_final.py       # 서빙 구성 작성 + test 평가
-│   └── 04_serve_api.py            # 앙상블 추론 API (FastAPI)
+│   ├── 04_serve_api.py            # 앙상블 추론 API (FastAPI)
+│   └── 05_baseline.py             # 기준 모델 비교 · 교차검증
 ├── results/
 │   ├── final_serving.json         # 배포 모델 test 지표 (등급별, 신뢰구간 포함)
-│   └── repro_final4.json          # 재학습 epoch별 test AUROC
+│   ├── repro_final4.json          # 재학습 epoch별 test AUROC
+│   └── baseline_cv.json           # 기준 모델 test · 교차검증 AUROC
 ├── docs/
 │   └── API명세.md                 # 추론 API 입출력 명세
 ├── requirements.txt
@@ -167,6 +183,9 @@ python src/03_evaluate_final.py --csv speakers_clean_kssds.csv
 # 4) API 서버
 python src/04_serve_api.py
 # → POST http://localhost:8000/predict  {"text": "..."}
+
+# 5) 기준 모델 비교 (약 5분). 03 다음에 실행하면 최종본과 짝지어 비교
+python src/05_baseline.py --csv speakers_clean_kssds.csv
 ```
 
 서빙 등급은 모델 평균 점수를 0.50–0.78 구간에서 0–1로 편 위험도에 적용합니다. 위험도 0.5 이상이면 상담 권유, 0.4 이상이면 관찰, 그 아래는 안정입니다. 추론 API 입출력 형식은 [`docs/API명세.md`](./docs/API명세.md)에 있습니다.
@@ -178,6 +197,7 @@ python src/04_serve_api.py
 - 우울 라벨은 **PHQ-2 유사 선별 문항**이며, 의학적 진단이 아닌 **관찰·연결**이 목적입니다. (자서전/회고가 주 기능, 정서 관찰은 보조 기능)
 - 원본 데이터(`speakers*.csv`)와 학습된 모델 가중치는 **AI-Hub 라이선스 및 용량 문제로 포함하지 않습니다.** AI-Hub에서 데이터셋 71703을 받아 화자 단위로 통합한 뒤 실행하세요.
 - epoch과 앙상블 조합을 test로 골랐기 때문에 test AUROC 0.661은 낙관적인 값이고, epoch을 미리 정해 재학습하면 0.641입니다. 새로운 화자에서의 성능은 별도 데이터로 확인해야 합니다.
+- 같은 test에서 TF-IDF 기준 모델이 0.645로, 최종본 앙상블과의 차이가 통계적으로 뚜렷하지 않습니다.
 - 답변 1개 분량(800자) 입력에서는 AUROC 0.604이고, 상담 권유 등급은 약 24%를 표시하는 대신 위험군의 약 34%만 잡습니다.
 - 점수 보정 구간(0.50–0.78)과 등급 기준(0.4 / 0.5)은 시연 문장으로 정한 값입니다. 보정 후 0.4–0.5 구간이 원점수 0.612–0.64로 좁아 🟡 등급은 약 10%에 그칩니다.
 - 구술 데이터는 과거 회상 중심이라 현재 우울 예측에 구조적 한계가 있으며, 향후 **음성·표정 멀티모달**로 확장 예정입니다.

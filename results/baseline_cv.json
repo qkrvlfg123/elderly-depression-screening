@@ -1,0 +1,73 @@
+{
+  "n_speakers": 5819,
+  "positive_rate": 0.2327,
+  "cutoff": 2,
+  "max_chars": 20000,
+  "seed": 42,
+  "same_test_speakers": {
+    "n_train": 4655,
+    "n_test": 1164,
+    "n_test_positive": 258,
+    "baseline_demographics": {
+      "auroc": 0.5635,
+      "ci95": [
+        0.5211,
+        0.6041
+      ]
+    },
+    "baseline_tfidf": {
+      "auroc": 0.6452,
+      "ci95": [
+        0.607,
+        0.6817
+      ]
+    },
+    "final_ensemble": {
+      "auroc": 0.6613,
+      "ci95": [
+        0.6247,
+        0.6969
+      ]
+    },
+    "final_minus_tfidf": {
+      "diff": 0.0161,
+      "ci95": [
+        -0.0149,
+        0.0466
+      ]
+    }
+  },
+  "cross_validation": {
+    "folds": 5,
+    "demographics": {
+      "mean": 0.5415,
+      "std": 0.0115,
+      "per_fold": [
+        0.5227,
+        0.5449,
+        0.5366,
+        0.5458,
+        0.5573
+      ]
+    },
+    "tfidf": {
+      "mean": 0.6298,
+      "std": 0.0143,
+      "per_fold": [
+        0.6199,
+        0.6238,
+        0.6125,
+        0.6427,
+        0.6503
+      ],
+      "out_of_fold": {
+        "auroc": 0.6297,
+        "ci95": [
+          0.6132,
+          0.646
+        ]
+      }
+    }
+  },
+  "seconds": 275
+}
