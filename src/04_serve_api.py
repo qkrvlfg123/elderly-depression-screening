@@ -2,22 +2,21 @@
 """
 04. 우울 위험 선별 API 서버 (FastAPI)
 
-기본은 발표 최종본 4모델(saved_models/final/, 09가 ensemble.json·inference.json 작성)을 로딩한다.
-02→06→07 파이프라인 모델은 --models ./saved_models 로 띄운다.
+발표 최종본 4모델(saved_models/final/, 03이 ensemble.json·inference.json 작성)을 로딩한다.
 청킹·집계는 학습·평가와 같은 함수(common.chunk_text / common.aggregate)를 쓰고,
 모델별 입력 길이·청크 설정은 각 모델 폴더의 inference.json을 그대로 따른다.
 
 점수: 모델 평균(raw) → ensemble.json 에 calibration 이 있으면 [min, max] 를 0~1로 선형 확장
       (최종본: 0.50 / 0.78) → risk_score
 등급: 상담 권유 🔴 risk_score >= threshold_refer / 관찰 🟡 >= threshold_watch / 안정 🟢 그 외
-      (최종본: 0.5 / 0.4, 시연 문장으로 정한 값 / 02 파이프라인: 07이 val에서 정한 값)
+      (최종본: 0.5 / 0.4, 시연 문장으로 정한 값)
 
 [실행]
     pip install fastapi uvicorn torch transformers numpy pandas
-    python src/04_serve_api.py                            # 최종본, http://localhost:8000
+    python src/04_serve_api.py                            # http://localhost:8000
 
 [모델 폴더 구조]
-    saved_models/
+    saved_models/final/
       ├─ ensemble.json            # {"members": [...], "threshold_refer": ..., "threshold_watch": ..., "calibration": {...}}
       ├─ KoBigBird_1234_f/        # config.json, 가중치, 토크나이저, inference.json
       └─ ...
@@ -119,12 +118,12 @@ def health():
 def load_models(models_dir):
     ens_path = os.path.join(models_dir, "ensemble.json")
     if not os.path.isfile(ens_path):
-        print(f"  [경고] {ens_path} 가 없습니다. 최종본은 09, 02 파이프라인은 06 → 07 을 먼저 실행하세요.")
+        print(f"  [경고] {ens_path} 가 없습니다. 03_evaluate_final.py 를 먼저 실행하세요.")
         return
     with open(ens_path, encoding="utf-8") as f:
         ens = json.load(f)
     if "threshold_source" not in ens:
-        print("  [중단] ensemble.json 에 threshold_source 가 없습니다 (최종본: 09 실행 / 02 파이프라인: 06 다음 07 실행).")
+        print("  [중단] ensemble.json 에 threshold_source 가 없습니다 (03_evaluate_final.py 를 먼저 실행하세요).")
         return
     if not 0.0 <= ens["threshold_watch"] <= ens["threshold_refer"] <= 1.0:
         print(f"  [중단] 임계값 순서가 잘못됐습니다: watch {ens['threshold_watch']} / refer {ens['threshold_refer']}")

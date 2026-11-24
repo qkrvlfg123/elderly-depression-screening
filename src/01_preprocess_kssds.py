@@ -61,7 +61,7 @@ def main():
     df["text"] = new_texts
     df.to_csv(args.csv_out, index=False, encoding="utf-8-sig")
     print(f"\n완료! 저장됨: {args.csv_out}")
-    print("다음 단계: 02_train_ensemble.py 로 앙상블 학습을 실행하세요.")
+    print("다음 단계: 02_train_final.py 로 학습을 실행하세요.")
 
 
 if __name__ == "__main__":

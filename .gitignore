@@ -9,7 +9,6 @@ model_저장/
 # results/ 의 요약 수치·분할 목록만 예외적으로 포함 — 화자별 예측·라벨·텍스트는 넣지 않는다
 *.csv
 !results/experiments.csv
-!results/input_length.csv
 !results/split.csv
 speakers*.csv
 

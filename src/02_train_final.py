@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-08. 최종본(발표 PPT) 4모델 앙상블 재현
+02. 발표 최종본 4모델 학습 (재현)
 
 이전 최종 앙상블(AUROC 0.674 보고)을 같은 데이터·분할·설정으로 다시 학습한다.
 학습 코드는 당시 스크립트(run.T.py)의 청킹·데이터셋·손실·학습 루프를 그대로 옮겼다 (fp32).
@@ -17,7 +17,7 @@
   - fixed_last : 미리 정한 규칙(마지막 epoch 5) — 대표값
   - best_test  : 당시 방식(test로 epoch 선택) — 재현 확인용, 낙관적
 
-[실행] python src/08_reproduce_final.py --csv speakers_clean_kssds.csv
+[실행] python src/02_train_final.py --csv speakers_clean_kssds.csv
 완료된 구성은 건너뛴다. 가중치(마지막 epoch)는 saved_models/repro/<구성>/ 에 저장.
 """
 import os

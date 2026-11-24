@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-09. 발표 최종본 서빙 구성 작성 + test 평가
+03. 발표 최종본 서빙 구성 작성 + test 평가
 
 최종본 4모델 가중치(드라이브 'modeling 최종본.zip' 의 models/)를 saved_models/final/<모델>/ 에 둔 뒤 실행한다.
   1) 각 모델 폴더에 inference.json (학습 당시 입력 설정) 과 saved_models/final/ensemble.json 을 쓴다.
@@ -9,10 +9,10 @@
   2) 04 서빙과 같은 처리(chunk_text → 청크 확률 평균 → 모델 평균 → 보정, fp32, max_length 패딩)로
      test 1,164명을 한 번 평가한다. 입력: 전체 텍스트 / 앞 800자(서비스 입력 분량).
 
-모델은 test로 epoch과 조합을 골랐던 것이므로 AUROC는 낙관적인 값이다 (재현 결과는 08 참고).
+모델은 test로 epoch과 조합을 골랐던 것이므로 AUROC는 낙관적인 값이다 (재현 결과는 02 참고).
 등급 규칙의 test 결과는 test와 무관하게 정한 규칙을 한 번 적용한 값이다.
 
-[실행] python src/09_final_serving.py --csv speakers_clean_kssds.csv
+[실행] python src/03_evaluate_final.py --csv speakers_clean_kssds.csv
 """
 import os
 import sys
@@ -28,7 +28,7 @@ from transformers import AutoTokenizer, AutoModelForSequenceClassification
 import common as C
 
 FINAL_DIR = os.path.join(C.ROOT, "saved_models", "final")
-# 학습 당시 설정 (08_reproduce_final.py 와 같음)
+# 학습 당시 설정 (02_train_final.py 와 같음)
 FINAL_MODELS = {
     "KoBigBird_1234_f": dict(arch="KoBigBird", max_len=3072, chunk_chars=6000, max_chunks=5),
     "KLUE-RoBERTa_888": dict(arch="KLUE-RoBERTa", max_len=512, chunk_chars=800, max_chunks=8),

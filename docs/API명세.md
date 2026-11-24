@@ -11,7 +11,7 @@ FastAPI 기반 추론 서버. STT로 변환된 어르신 텍스트를 받아 우
 
 ```bash
 pip install fastapi uvicorn torch transformers numpy pandas
-# 최종본 가중치 4개를 saved_models/final/<모델명>/ 에 두고, 09로 ensemble.json·inference.json 작성 후
+# 최종본 가중치 4개를 saved_models/final/<모델명>/ 에 두고, 03_evaluate_final.py로 ensemble.json·inference.json 작성 후
 python src/04_serve_api.py
 # → 서버 시작: http://localhost:8000  (saved_models/final/ensemble.json 의 구성원 4개 로딩)
 ```
@@ -95,4 +95,3 @@ const result = await res.json();
 
 - 텍스트는 학습·평가와 같은 함수(`src/common.py`의 `chunk_text`, `aggregate`)로 나누고 청크 확률을 평균한다. 모델별 입력 길이·청크 크기는 각 모델 폴더의 `inference.json`을 따른다(KoBigBird 3,072토큰 · 6,000자 × 5청크, KLUE 계열 512토큰 · 800자 × 8청크).
 - 발표 당시 서버는 4,096자 × 2청크 중 최댓값을 썼다. 학습과 맞추기 위해 위 방식으로 바꾸고, 학습처럼 청크를 max_length까지 패딩한다(KoBigBird는 입력 길이에 따라 어텐션 방식이 달라져, 패딩하지 않으면 학습 때와 다른 점수가 나온다).
-- val 기반 파이프라인 모델은 `python src/04_serve_api.py --models ./saved_models`로 띄우며, 이 경우 보정 없이 07이 val에서 정한 임계값(관찰 0.388 / 상담 권유 0.611)을 쓴다.
