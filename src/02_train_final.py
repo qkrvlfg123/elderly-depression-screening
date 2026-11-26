@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-02. 발표 최종본 4모델 학습 (재현)
+02. 최종 앙상블 4모델 재학습
 
 이전 최종 앙상블(AUROC 0.674 보고)을 같은 데이터·분할·설정으로 다시 학습한다.
 학습 코드는 당시 스크립트(run.T.py)의 청킹·데이터셋·손실·학습 루프를 그대로 옮겼다 (fp32).
@@ -13,8 +13,8 @@
 
 당시에는 모델마다 test AUROC가 가장 높은 epoch을 골랐다. 여기서는 epoch마다 test 예측을
 모두 저장하고 두 값을 함께 보고한다.
-  - fixed_last : 미리 정한 규칙(마지막 epoch 5) — 대표값
-  - best_test  : 당시 방식(test로 epoch 선택) — 재현 확인용, 낙관적
+  - fixed_last : 미리 정한 규칙(마지막 epoch 5). 대표값
+  - best_test  : 당시 방식(test로 epoch 선택). 재현 확인용, 낙관적
 
 [실행] python src/02_train_final.py --csv speakers_clean_kssds.csv
 완료된 구성은 건너뛴다. 가중치(마지막 epoch)는 saved_models/repro/<구성>/ 에 저장.
@@ -42,7 +42,7 @@ TARGET = "PHQ2"; CUT = 2; EPOCHS = 5; POS_WEIGHT = 5.0; FOCAL_GAMMA = 2.0
 BB = dict(mn="monologg/kobigbird-bert-base", ln=3072, cc=6000, mc=5, batch=1, lr=1e-5, accum=16)
 KL = dict(mn="klue/bert-base", ln=512, cc=800, mc=8, batch=16, lr=2e-5, accum=1)
 RB = dict(mn="klue/roberta-base", ln=512, cc=800, mc=8, batch=16, lr=2e-5, accum=1)
-FINAL4 = [  # (이름, 설정, seed, focal) — 발표 PPT 최종 4개
+FINAL4 = [  # (이름, 설정, seed, focal). 최종 앙상블 구성 4개
     ("KoBigBird_1234_f", BB, 1234, True),
     ("KLUE-RoBERTa_888", RB, 888, False),
     ("KoBigBird_2222_f", BB, 2222, True),
@@ -51,7 +51,7 @@ FINAL4 = [  # (이름, 설정, seed, focal) — 발표 PPT 최종 4개
 REPRO_DIR = os.path.join(C.PRED_DIR, "repro")
 
 
-# ── 당시 코드 그대로 (run.T.py) ──────────────────────────────────────
+# ── 당시 학습 코드 (run.T.py) ───────────────────────────────────────
 def sent_chunks(t, cc, mc):
     ss = [p.strip() for p in re.split(r"(?<=[.!?])\s*", str(t)) if p.strip()]
     ch, cur = [], ""

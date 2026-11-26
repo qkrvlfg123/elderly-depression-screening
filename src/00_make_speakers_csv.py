@@ -4,7 +4,7 @@
 
 AI-Hub 고령자 구술 데이터(dataSetSn=71703)의 JSON 파일들을 읽어 같은 화자(speaker_id)의
 여러 답변을 하나로 합치고, 우울점수(PHQ-2 유사)·불안점수(GAD-2 유사)·인구통계 정보를 정리한다.
-전체 파이프라인의 가장 앞 단계 — 이 출력(speakers.csv)이 01_preprocess_kssds.py의 입력이 된다.
+파이프라인의 첫 단계이며, 출력(speakers.csv)은 01_preprocess_kssds.py의 입력이 된다.
 
 [JSON 구조]
   qa: [{question, answer}, ...]     # 질문·답변 쌍
@@ -15,7 +15,7 @@ AI-Hub 고령자 구술 데이터(dataSetSn=71703)의 JSON 파일들을 읽어 �
 [출력] speakers.csv
   컬럼: speaker_id, n_keywords, age, sex, edu, PHQ2, GAD2, n_chars, text
 
-[실행] python 00_make_speakers_csv.py --json-dir ./json --out speakers.csv
+[실행] python src/00_make_speakers_csv.py --json-dir ./json --out speakers.csv
 """
 import os
 import json
@@ -63,7 +63,7 @@ def main():
         if kw:
             speakers[speaker_id]["keywords"].append(kw)
 
-        # 화자 정보(teller) — 처음 한 번만
+        # 화자 정보(teller): 처음 한 번만
         teller = data.get("teller", [])
         if teller and speakers[speaker_id]["age"] is None:
             t = teller[0]

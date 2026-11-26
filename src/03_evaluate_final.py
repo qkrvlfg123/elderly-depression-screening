@@ -1,15 +1,15 @@
 # -*- coding: utf-8 -*-
 """
-03. 발표 최종본 서빙 구성 작성 + test 평가
+03. 배포 모델 서빙 구성 작성 + test 평가
 
-최종본 4모델 가중치(드라이브 'modeling 최종본.zip' 의 models/)를 saved_models/final/<모델>/ 에 둔 뒤 실행한다.
+배포 가중치 4개(저장소에 없음)를 saved_models/final/<모델>/ 에 둔 뒤 실행한다.
   1) 각 모델 폴더에 inference.json (학습 당시 입력 설정) 과 saved_models/final/ensemble.json 을 쓴다.
-     점수 보정(0.50~0.78 → 0~1)과 등급 기준(🟡 0.4 / 🔴 0.5)은 최종본 server.py 의 값을 그대로 쓴다.
+     점수 보정(0.50~0.78 → 0~1)과 등급 기준(관찰 0.4 / 상담 권유 0.5)은 발표 당시 server.py 의 값을 그대로 쓴다.
      이 값들은 시연 문장으로 정한 것이라 test를 보고 정한 값이 아니다.
   2) 04 서빙과 같은 처리(chunk_text → 청크 확률 평균 → 모델 평균 → 보정, fp32, max_length 패딩)로
      test 1,164명을 한 번 평가한다. 입력: 전체 텍스트 / 앞 800자(서비스 입력 분량).
 
-모델은 test로 epoch과 조합을 골랐던 것이므로 AUROC는 낙관적인 값이다 (재현 결과는 02 참고).
+모델은 test로 epoch과 조합을 골랐던 것이므로 AUROC는 낙관적인 값이다 (재학습 결과는 02 참고).
 등급 규칙의 test 결과는 test와 무관하게 정한 규칙을 한 번 적용한 값이다.
 
 [실행] python src/03_evaluate_final.py --csv speakers_clean_kssds.csv

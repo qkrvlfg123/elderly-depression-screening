@@ -2,13 +2,13 @@
 """
 04. 우울 위험 선별 API 서버 (FastAPI)
 
-발표 최종본 4모델(saved_models/final/, 03이 ensemble.json·inference.json 작성)을 로딩한다.
-청킹·집계는 학습·평가와 같은 함수(common.chunk_text / common.aggregate)를 쓰고,
+배포 모델 4개(saved_models/final/, 03이 ensemble.json·inference.json 작성)를 로딩한다.
+청킹·집계는 평가(03)와 같은 함수(common.chunk_text / common.aggregate)를 쓰고,
 모델별 입력 길이·청크 설정은 각 모델 폴더의 inference.json을 그대로 따른다.
 
 점수: 모델 평균(raw) → ensemble.json 에 calibration 이 있으면 [min, max] 를 0~1로 선형 확장
       (최종본: 0.50 / 0.78) → risk_score
-등급: 상담 권유 🔴 risk_score >= threshold_refer / 관찰 🟡 >= threshold_watch / 안정 🟢 그 외
+등급: 상담 권유 risk_score >= threshold_refer / 관찰 >= threshold_watch / 안정 그 외
       (최종본: 0.5 / 0.4, 시연 문장으로 정한 값)
 
 [실행]
@@ -25,8 +25,7 @@
     POST /predict   {"text": "..."}  → risk_score / happiness_index / grade / ...
     GET  /health                      → 로딩된 모델 목록 / 임계값 / device
 
-주의: 이 도구는 '진단'이 아니라 '선별·권유'용입니다. 상담 권유(🔴) 등급도 부드러운
-      권유 메시지로만 전달합니다.
+주의: 진단 도구가 아니라 선별·권유용임. 상담 권유 등급도 권유 메시지로만 전달함.
 """
 import os
 import json
@@ -71,10 +70,10 @@ def to_grade(score):
 
 
 def predict_one(text, m):
-    """학습·평가와 같은 청킹(chunk_text)과 집계(aggregate)."""
+    """평가(03)와 같은 청킹(chunk_text)과 집계(aggregate)."""
     probs = []
     for c in C.chunk_text(text, m["chunk_chars"], m["max_chunks"]):
-        # 학습·평가와 같이 max_len까지 패딩 (KoBigBird는 길이에 따라 어텐션 방식이 바뀜)
+        # 학습(02)·평가(03)와 같이 max_len까지 패딩 (KoBigBird는 길이에 따라 어텐션 방식이 바뀜)
         enc = m["tok"](c, truncation=True, max_length=m["max_len"], padding="max_length",
                        return_tensors="pt").to(DEVICE)
         with torch.no_grad():
